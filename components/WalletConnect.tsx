@@ -22,8 +22,10 @@ export default function WalletConnect() {
     try {
       const accounts = await peraWallet.connect();
       setAddress(accounts[0]);
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      if (error?.message !== "Connect modal is closed by user") {
+        console.error(error);
+      }
     }
   };
 
@@ -33,7 +35,7 @@ export default function WalletConnect() {
   };
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4 ">
       {address ? (
         <div className="flex items-center gap-3 bg-slate-800 p-2 px-4 rounded-xl border border-emerald-500/30">
           <span className="text-slate-300 text-sm font-mono">

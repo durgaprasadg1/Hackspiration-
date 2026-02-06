@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,6 +22,17 @@ export default function RootLayout({
         className={`${inter.className} bg-slate-950 text-slate-100 min-h-screen`}
       >
         <AppProvider>{children}</AppProvider>
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: "#0f172a",
+              color: "#fff",
+              border: "1px solid rgba(16, 185, 129, 0.2)",
+              backdropFilter: "blur(12px)",
+            },
+          }}
+        />
       </body>
     </html>
   );
