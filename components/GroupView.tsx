@@ -2,11 +2,24 @@
 
 import React, { useState, useMemo } from "react";
 import { useAppContext } from "@/context/AppContext";
-import { Plus, Users, Receipt, Send, ChevronLeft, Share2, Wand2 } from "lucide-react";
+import {
+  Plus,
+  Users,
+  Receipt,
+  Send,
+  ChevronLeft,
+  Share2,
+  Wand2,
+  Settings2,
+  Hash,
+  Percent,
+} from "lucide-react";
 import {
   calculateNetDebt,
+  calculateRawDebts,
   createAtomicSettlement,
   Expense,
+  SplitType,
 } from "@/utils/algorand";
 import { minimizeDebts } from "@/utils/debtGraph";
 import { PeraWalletConnect } from "@perawallet/connect";
@@ -18,40 +31,51 @@ import SettlementPreview from "./SettlementPreview";
 const peraWallet = new PeraWalletConnect();
 
 export default function GroupView() {
-  const { activeGroup, setActiveGroup, address, groups, setGroups } = useAppContext();
+  const { activeGroup, setActiveGroup, address, groups, setGroups } =
+    useAppContext();
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
+  const [assetId, setAssetId] = useState<number>(0);
+  const [splitType, setSplitType] = useState<SplitType>("equal");
+  const [manualSplits, setManualSplits] = useState<Record<string, number>>({});
   const [selectedSplitters, setSelectedSplitters] = useState<string[]>([]);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
   if (!activeGroup) return null;
 
-  const optimizedDebts = useMemo(() => 
-    minimizeDebts(activeGroup.expenses, activeGroup.members),
-    [activeGroup.expenses, activeGroup.members]
+  const optimizedDebtsMap = useMemo(
+    () => minimizeDebts(activeGroup.expenses, activeGroup.members),
+    [activeGroup.expenses, activeGroup.members],
   );
 
-  const myOptimizedDebts = useMemo(() => 
-    optimizedDebts.filter(d => d.from === address),
-    [optimizedDebts, address]
+  const allOptimizedTransfers = useMemo(
+    () => Object.values(optimizedDebtsMap).flat(),
+    [optimizedDebtsMap],
   );
 
-  const rawDebts = useMemo(() => 
-    calculateNetDebt(activeGroup.expenses, activeGroup.members).filter(d => d.from === address),
-    [activeGroup.expenses, activeGroup.members, address]
+  const myOptimizedDebts = useMemo(
+    () => allOptimizedTransfers.filter((d) => d.from === address),
+    [allOptimizedTransfers, address],
   );
 
   const handleAddExpense = (e: React.FormEvent) => {
     e.preventDefault();
     if (!address || !title || !amount) return;
 
+    const splitters =
+      selectedSplitters.length > 0 ? selectedSplitters : activeGroup.members;
+
     const newExpense: Expense = {
       id: Math.random().toString(36).substr(2, 9),
       title,
       amount: parseFloat(amount),
       payer: address,
-      splitters: selectedSplitters.length > 0 ? selectedSplitters : activeGroup.members,
+      splitters,
+      splitType,
+      assetId: assetId !== 0 ? assetId : undefined,
+      splits: splitType !== "equal" ? manualSplits : undefined,
+      timestamp: Date.now(),
     };
 
     const updatedGroup = {
@@ -63,13 +87,16 @@ export default function GroupView() {
     setGroups(groups.map((g) => (g.id === updatedGroup.id ? updatedGroup : g)));
     setTitle("");
     setAmount("");
+    setAssetId(0);
+    setSplitType("equal");
+    setManualSplits({});
     setSelectedSplitters([]);
     toast.success("Expense added to graph");
   };
 
   const handleSettleUp = async () => {
     if (!address) return;
-    
+
     if (myOptimizedDebts.length === 0) {
       toast.error("No outstanding debts found in the optimized graph.");
       return;
@@ -80,12 +107,17 @@ export default function GroupView() {
     try {
       const txns = await createAtomicSettlement(
         address,
-        myOptimizedDebts.map((d) => ({ receiver: d.to, amount: d.amount })),
+        myOptimizedDebts.map((d) => ({
+          receiver: d.to,
+          amount: d.amount,
+          assetId: d.assetId,
+          assetDecimals: d.assetDecimals,
+        })),
       );
-      
+
       const signerTxns = txns.map((txn) => ({ txn, signers: [address] }));
       await peraWallet.signTransaction([signerTxns]);
-      
+
       toast.success("Transactions signed and grouped!", { id: tId });
       setShowPreview(false);
     } catch (error: any) {
@@ -98,8 +130,16 @@ export default function GroupView() {
     }
   };
 
+  const rawDebtCount = useMemo(
+    () =>
+      calculateRawDebts(activeGroup.expenses, activeGroup.members).filter(
+        (d) => d.from === address,
+      ).length,
+    [activeGroup.expenses, activeGroup.members, address],
+  );
+
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="max-w-2xl mx-auto p-4"
@@ -123,9 +163,12 @@ export default function GroupView() {
         <div className="absolute top-0 right-0 p-8 opacity-10">
           <Users size={80} />
         </div>
-        <h2 className="text-3xl font-bold mb-1 tracking-tight">{activeGroup.name}</h2>
+        <h2 className="text-3xl font-bold mb-1 tracking-tight">
+          {activeGroup.name}
+        </h2>
         <div className="flex items-center gap-2 text-slate-400 text-sm">
-          <Users size={16} /> {activeGroup.members.length} Members active in graph
+          <Users size={16} /> {activeGroup.members.length} Members active in
+          graph
         </div>
       </div>
 
@@ -144,43 +187,106 @@ export default function GroupView() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
-          <div className="relative">
-             <input
-              type="number"
-              placeholder="Amount in ALGO"
-              className="w-full glass-input rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none pr-16"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500 font-bold">ALGO</span>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="relative">
+              <input
+                type="number"
+                placeholder="Amount"
+                className="w-full glass-input rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none pr-16"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500 font-bold text-xs">
+                {assetId === 0 ? "ALGO" : "ASA"}
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                type="number"
+                placeholder="Asset ID (0=ALGO)"
+                className="w-full glass-input rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none"
+                value={assetId || ""}
+                onChange={(e) => setAssetId(parseInt(e.target.value) || 0)}
+              />
+              <Hash
+                size={16}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 p-1 bg-slate-900/50 rounded-2xl">
+            {(["equal", "percentage", "fixed"] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setSplitType(type)}
+                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
+                  splitType === type
+                    ? "bg-emerald-600 text-white shadow-lg"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                {type}
+              </button>
+            ))}
           </div>
 
           <div className="space-y-3">
-            <p className="text-sm text-slate-400 font-medium">Split with:</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {activeGroup.members.map((m) => (
-                <label
-                  key={m}
-                  className="flex items-center gap-3 glass-input p-3 rounded-xl cursor-pointer hover:bg-slate-800/50 group transition-all"
-                >
-                  <input
-                    type="checkbox"
-                    className="accent-emerald-500 w-4 h-4"
-                    checked={selectedSplitters.includes(m)}
-                    onChange={(e) => {
-                      if (e.target.checked)
-                        setSelectedSplitters([...selectedSplitters, m]);
-                      else
-                        setSelectedSplitters(
-                          selectedSplitters.filter((s) => s !== m),
-                        );
-                    }}
-                  />
-                  <span className="text-xs font-mono truncate text-slate-400 group-hover:text-slate-200">
-                    {m.slice(0, 10)}...{m.slice(-4)}
-                  </span>
-                </label>
-              ))}
+            <p className="text-sm text-slate-400 font-medium flex justify-between">
+              {splitType === "equal"
+                ? "Split with:"
+                : `Configure ${splitType} splits:`}
+              {splitType !== "equal" && (
+                <span className="text-[10px] text-emerald-500 uppercase">
+                  Input {splitType === "percentage" ? "%" : "units"}
+                </span>
+              )}
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              {activeGroup.members.map((m) => {
+                const isSelected =
+                  selectedSplitters.includes(m) ||
+                  selectedSplitters.length === 0;
+                return (
+                  <div
+                    key={m}
+                    className={`flex items-center gap-3 glass-input p-3 rounded-xl transition-all ${isSelected ? "opacity-100" : "opacity-40"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="accent-emerald-500 w-4 h-4"
+                      checked={selectedSplitters.includes(m)}
+                      onChange={(e) => {
+                        if (e.target.checked)
+                          setSelectedSplitters([...selectedSplitters, m]);
+                        else
+                          setSelectedSplitters(
+                            selectedSplitters.filter((s) => s !== m),
+                          );
+                      }}
+                    />
+                    <span className="text-xs font-mono truncate text-slate-400 flex-1">
+                      {m.slice(0, 10)}...{m.slice(-4)}{" "}
+                      {m === address && "(You)"}
+                    </span>
+                    {splitType !== "equal" && (
+                      <input
+                        type="number"
+                        placeholder={splitType === "percentage" ? "%" : "Amt"}
+                        className="w-20 bg-slate-800 rounded-lg px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-emerald-500"
+                        value={manualSplits[m] || ""}
+                        onChange={(e) =>
+                          setManualSplits({
+                            ...manualSplits,
+                            [m]: parseFloat(e.target.value) || 0,
+                          })
+                        }
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
           <button className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.98]">
@@ -208,9 +314,9 @@ export default function GroupView() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <SettlementPreview 
-                optimizedTransfers={myOptimizedDebts} 
-                rawDebtCount={rawDebts.length}
+              <SettlementPreview
+                optimizedTransfers={myOptimizedDebts}
+                rawDebtCount={rawDebtCount}
               />
               <button
                 onClick={handleSettleUp}
@@ -246,18 +352,21 @@ export default function GroupView() {
                     <div>
                       <p className="font-bold text-slate-100">{exp.title}</p>
                       <p className="text-[10px] text-slate-500 font-mono mt-1">
-                        BY {exp.payer === address ? "YOU" : exp.payer.slice(0, 10)}...
+                        BY{" "}
+                        {exp.payer === address ? "YOU" : exp.payer.slice(0, 10)}
+                        ...
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-emerald-400 font-black text-lg">
-                        {exp.amount} <span className="text-xs">ALGO</span>
+                        {exp.amount}{" "}
+                        <span className="text-xs">
+                          {exp.assetId ? `ASA ${exp.assetId}` : "ALGO"}
+                        </span>
                       </p>
-                      <div className="flex gap-1 justify-end mt-1">
-                         {exp.splitters.map((_, i) => (
-                           <div key={i} className="w-1.5 h-1.5 rounded-full bg-slate-700" />
-                         ))}
-                      </div>
+                      <p className="text-[9px] text-slate-500 uppercase tracking-tighter">
+                        {exp.splitType} Split
+                      </p>
                     </div>
                   </motion.div>
                 ))
@@ -267,10 +376,10 @@ export default function GroupView() {
         </AnimatePresence>
       </div>
 
-      <ShareQR 
-        groupId={activeGroup.id} 
-        isOpen={isShareOpen} 
-        onClose={() => setIsShareOpen(false)} 
+      <ShareQR
+        groupId={activeGroup.id}
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
       />
     </motion.div>
   );

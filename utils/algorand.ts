@@ -7,20 +7,53 @@ export const getAlgodClient = () => {
   return new algosdk.Algodv2(token, server, port);
 };
 
+export type SplitType = "equal" | "percentage" | "fixed";
+
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  payer: string;
+  splitters: string[];
+  assetId?: number;
+  assetDecimals?: number;
+  category?: string;
+  timestamp: number;
+  splitType: SplitType;
+  splits?: Record<string, number>;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  members: string[];
+  expenses: Expense[];
+}
+
 export const createAtomicSettlement = async (
   sender: string,
-  settlements: { receiver: string; amount: number }[]
+  settlements: { receiver: string; amount: number; assetId?: number; assetDecimals?: number }[]
 ) => {
   const client = getAlgodClient();
   const params = await client.getTransactionParams().do();
   
   const txns = settlements.map((s) => {
-    return algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      from: sender,
-      to: s.receiver,
-      amount: algosdk.algosToMicroalgos(s.amount),
-      suggestedParams: params,
-    });
+    if (!s.assetId || s.assetId === 0) {
+      return algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        from: sender,
+        to: s.receiver,
+        amount: algosdk.algosToMicroalgos(s.amount),
+        suggestedParams: params,
+      });
+    } else {
+      return algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        from: sender,
+        to: s.receiver,
+        assetIndex: s.assetId,
+        amount: Math.round(s.amount * Math.pow(10, s.assetDecimals || 6)),
+        suggestedParams: params,
+      });
+    }
   });
 
   const groupID = algosdk.computeGroupID(txns);
@@ -30,57 +63,69 @@ export const createAtomicSettlement = async (
 };
 
 export const calculateNetDebt = (expenses: Expense[], members: string[]) => {
-  const balances: Record<string, number> = {};
-  members.forEach((m) => (balances[m] = 0));
+  const assetBalances: Record<number, Record<string, number>> = {};
 
   expenses.forEach((exp) => {
-    const share = exp.amount / exp.splitters.length;
-    balances[exp.payer] += exp.amount;
-    exp.splitters.forEach((s) => {
-      balances[s] -= share;
-    });
-  });
-
-  const debtors = members
-    .filter((m) => balances[m] < 0)
-    .sort((a, b) => balances[a] - balances[b]);
-  const creditors = members
-    .filter((m) => balances[m] > 0)
-    .sort((a, b) => balances[b] - balances[a]);
-
-  const transactions: { from: string; to: string; amount: number }[] = [];
-
-  let i = 0, j = 0;
-  while (i < debtors.length && j < creditors.length) {
-    const debt = -balances[debtors[i]];
-    const credit = balances[creditors[j]];
-    const amount = Math.min(debt, credit);
-
-    if (amount > 0) {
-      transactions.push({ from: debtors[i], to: creditors[j], amount });
+    const aid = exp.assetId || 0;
+    if (!assetBalances[aid]) {
+      assetBalances[aid] = {};
+      members.forEach((m) => (assetBalances[aid][m] = 0));
     }
 
-    balances[debtors[i]] += amount;
-    balances[creditors[j]] -= amount;
+    const balances = assetBalances[aid];
+    balances[exp.payer] += exp.amount;
 
-    if (Math.abs(balances[debtors[i]]) < 0.01) i++;
-    if (Math.abs(balances[creditors[j]]) < 0.01) j++;
-  }
+    if (exp.splitType === "equal") {
+      const share = exp.amount / exp.splitters.length;
+      exp.splitters.forEach((s) => {
+        balances[s] -= share;
+      });
+    } else if (exp.splitType === "percentage" && exp.splits) {
+      exp.splitters.forEach((s) => {
+        const share = (exp.amount * (exp.splits![s] || 0)) / 100;
+        balances[s] -= share;
+      });
+    } else if (exp.splitType === "fixed" && exp.splits) {
+      exp.splitters.forEach((s) => {
+        balances[s] -= exp.splits![s] || 0;
+      });
+    }
+  });
 
-  return transactions;
+  return assetBalances;
 };
 
-export interface Expense {
-  id: string;
-  title: string;
-  amount: number;
-  payer: string;
-  splitters: string[];
-}
+export const calculateRawDebts = (expenses: Expense[], members: string[]) => {
+  const rawTransfers: { from: string; to: string; amount: number; assetId?: number }[] = [];
 
-export interface Group {
-  id: string;
-  name: string;
-  members: string[];
-  expenses: Expense[];
-}
+  expenses.forEach((exp) => {
+    if (exp.splitType === "equal") {
+      const share = exp.amount / exp.splitters.length;
+      exp.splitters.forEach((s) => {
+        if (s !== exp.payer) {
+          rawTransfers.push({ from: s, to: exp.payer, amount: share, assetId: exp.assetId });
+        }
+      });
+    } else if (exp.splitType === "percentage" && exp.splits) {
+      exp.splitters.forEach((s) => {
+        if (s !== exp.payer) {
+          const share = (exp.amount * (exp.splits![s] || 0)) / 100;
+          if (share > 0) {
+            rawTransfers.push({ from: s, to: exp.payer, amount: share, assetId: exp.assetId });
+          }
+        }
+      });
+    } else if (exp.splitType === "fixed" && exp.splits) {
+      exp.splitters.forEach((s) => {
+        if (s !== exp.payer) {
+          const share = exp.splits![s] || 0;
+          if (share > 0) {
+            rawTransfers.push({ from: s, to: exp.payer, amount: share, assetId: exp.assetId });
+          }
+        }
+      });
+    }
+  });
+
+  return rawTransfers;
+};

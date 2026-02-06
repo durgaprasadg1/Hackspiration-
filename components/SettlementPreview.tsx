@@ -47,7 +47,8 @@ export default function SettlementPreview({
 
             <div className="text-right">
               <div className="text-emerald-400 font-bold">
-                {tx.amount.toFixed(2)} ALGO
+                {tx.amount.toFixed(2)}{" "}
+                {tx.assetId ? `ASA ${tx.assetId}` : "ALGO"}
               </div>
               <div className="text-[10px] text-slate-500 font-mono">
                 {tx.from.slice(0, 6)}... → {tx.to.slice(0, 6)}...
