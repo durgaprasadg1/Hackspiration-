@@ -13,7 +13,50 @@ import {
   Settings2,
   Hash,
   Percent,
+  PieChart,
+  Download,
+  Clock,
+  Tag,
 } from "lucide-react";
+
+const CATEGORIES = [
+  {
+    name: "Food",
+    icon: "🍴",
+    color: "bg-orange-500/20",
+    textColor: "text-orange-400",
+  },
+  {
+    name: "Housing",
+    icon: "🏠",
+    color: "bg-blue-500/20",
+    textColor: "text-blue-400",
+  },
+  {
+    name: "Transport",
+    icon: "🚗",
+    color: "bg-purple-500/20",
+    textColor: "text-purple-400",
+  },
+  {
+    name: "Fun",
+    icon: "🎮",
+    color: "bg-pink-500/20",
+    textColor: "text-pink-400",
+  },
+  {
+    name: "Supplies",
+    icon: "📦",
+    color: "bg-yellow-500/20",
+    textColor: "text-yellow-400",
+  },
+  {
+    name: "Others",
+    icon: "✨",
+    color: "bg-emerald-500/20",
+    textColor: "text-emerald-400",
+  },
+];
 import {
   calculateNetDebt,
   calculateRawDebts,
@@ -36,11 +79,15 @@ export default function GroupView() {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [assetId, setAssetId] = useState<number>(0);
+  const [category, setCategory] = useState("Others");
   const [splitType, setSplitType] = useState<SplitType>("equal");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [interval, setInterval] = useState<"weekly" | "monthly">("monthly");
   const [manualSplits, setManualSplits] = useState<Record<string, number>>({});
   const [selectedSplitters, setSelectedSplitters] = useState<string[]>([]);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [viewMode, setViewMode] = useState<"logs" | "analytics">("logs");
 
   if (!activeGroup) return null;
 
@@ -73,8 +120,11 @@ export default function GroupView() {
       payer: address,
       splitters,
       splitType,
+      category,
       assetId: assetId !== 0 ? assetId : undefined,
       splits: splitType !== "equal" ? manualSplits : undefined,
+      isRecurring,
+      interval: isRecurring ? interval : undefined,
       timestamp: Date.now(),
     };
 
@@ -88,7 +138,10 @@ export default function GroupView() {
     setTitle("");
     setAmount("");
     setAssetId(0);
+    setCategory("Others");
     setSplitType("equal");
+    setIsRecurring(false);
+    setInterval("monthly");
     setManualSplits({});
     setSelectedSplitters([]);
     toast.success("Expense added to graph");
@@ -138,6 +191,50 @@ export default function GroupView() {
     [activeGroup.expenses, activeGroup.members, address],
   );
 
+  const categoryTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    activeGroup.expenses.forEach((exp) => {
+      const cat = exp.category || "Others";
+      totals[cat] = (totals[cat] || 0) + exp.amount;
+    });
+    return totals;
+  }, [activeGroup.expenses]);
+
+  const totalSpent = useMemo(
+    () => Object.values(categoryTotals).reduce((a, b) => a + b, 0),
+    [categoryTotals],
+  );
+  const handleExportCSV = () => {
+    const headers = [
+      "Title",
+      "Amount",
+      "Payer",
+      "Splitters",
+      "Category",
+      "Date",
+      "AssetID",
+    ];
+    const rows = activeGroup.expenses.map((e) => [
+      e.title,
+      e.amount,
+      e.payer,
+      `"${e.splitters.join("; ")}"`,
+      e.category || "Others",
+      new Date(e.timestamp).toLocaleDateString(),
+      e.assetId || 0,
+    ]);
+
+    const csvContent = [headers, ...rows].map((e) => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${activeGroup.name}_ledger.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Ledger exported to CSV");
+  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -187,6 +284,25 @@ export default function GroupView() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
+
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.name}
+                type="button"
+                onClick={() => setCategory(cat.name)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold border transition-all ${
+                  category === cat.name
+                    ? `${cat.color} ${cat.textColor} border-current`
+                    : "bg-slate-900 border-slate-700 text-slate-500"
+                }`}
+              >
+                <span>{cat.icon}</span>
+                {cat.name}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="relative">
               <input
@@ -289,6 +405,40 @@ export default function GroupView() {
               })}
             </div>
           </div>
+
+          <div className="flex border-t border-slate-800 pt-5 mt-5">
+            <button
+              type="button"
+              onClick={() => setIsRecurring(!isRecurring)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                isRecurring
+                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                  : "text-slate-500 bg-slate-900 border border-transparent"
+              }`}
+            >
+              <Clock size={14} />{" "}
+              {isRecurring ? "Recurring Expense" : "One-time"}
+            </button>
+            {isRecurring && (
+              <div className="flex gap-2 ml-4">
+                {(["weekly", "monthly"] as const).map((int) => (
+                  <button
+                    key={int}
+                    type="button"
+                    onClick={() => setInterval(int)}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
+                      interval === int
+                        ? "text-emerald-400 font-black"
+                        : "text-slate-600"
+                    }`}
+                  >
+                    {int}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20 active:scale-[0.98]">
             <Plus size={20} strokeWidth={3} /> Add to Ledger
           </button>
@@ -296,14 +446,42 @@ export default function GroupView() {
       </form>
 
       <div className="glass-card rounded-3xl p-8">
-        <div className="flex justify-between items-center mb-8">
-          <h3 className="text-xl font-bold tracking-tight">Financial Health</h3>
-          <button
-            onClick={() => setShowPreview(!showPreview)}
-            className="bg-slate-800/80 hover:bg-slate-700 text-emerald-400 px-5 py-2.5 rounded-2xl text-sm font-black flex items-center gap-2 border border-emerald-500/20 transition-all active:scale-95"
-          >
-            <Wand2 size={18} /> {showPreview ? "View Logs" : "Magic Settle"}
-          </button>
+        <div className="flex flex-col gap-6 mb-8">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold tracking-tight">
+              Financial Health
+            </h3>
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className="bg-slate-800/80 hover:bg-slate-700 text-emerald-400 px-5 py-2.5 rounded-2xl text-sm font-black flex items-center gap-2 border border-emerald-500/20 transition-all active:scale-95"
+            >
+              <Wand2 size={18} /> {showPreview ? "View Logs" : "Magic Settle"}
+            </button>
+          </div>
+
+          <div className="flex gap-2 p-1 bg-slate-900/50 rounded-2xl w-fit">
+            <button
+              onClick={() => setViewMode("logs")}
+              className={`px-6 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${viewMode === "logs" ? "bg-slate-800 text-emerald-400" : "text-slate-500"}`}
+            >
+              <Clock size={14} /> Activity
+            </button>
+            <button
+              onClick={() => setViewMode("analytics")}
+              className={`px-6 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${viewMode === "analytics" ? "bg-slate-800 text-emerald-400" : "text-slate-500"}`}
+            >
+              <PieChart size={14} /> Analytics
+            </button>
+          </div>
+
+          {!showPreview && (
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-500 hover:text-emerald-400 transition-colors bg-slate-900/50 px-3 py-1.5 rounded-xl border border-slate-800 w-fit"
+            >
+              <Download size={14} /> Export CSV
+            </button>
+          )}
         </div>
 
         <AnimatePresence mode="wait">
@@ -324,6 +502,75 @@ export default function GroupView() {
               >
                 <Send size={20} /> Execute Atomic Settlement
               </button>
+            </motion.div>
+          ) : viewMode === "analytics" ? (
+            <motion.div
+              key="analytics"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="space-y-6"
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <div className="glass-input p-6 rounded-2xl">
+                  <p className="text-slate-500 text-[10px] font-bold uppercase mb-1">
+                    Total Group Spend
+                  </p>
+                  <p className="text-2xl font-black text-emerald-400">
+                    {totalSpent} <span className="text-xs">ALGO</span>
+                  </p>
+                </div>
+                <div className="glass-input p-6 rounded-2xl">
+                  <p className="text-slate-500 text-[10px] font-bold uppercase mb-1">
+                    Average per Category
+                  </p>
+                  <p className="text-2xl font-black text-emerald-400">
+                    {(
+                      totalSpent / (Object.keys(categoryTotals).length || 1)
+                    ).toFixed(2)}{" "}
+                    <span className="text-xs">ALGO</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {CATEGORIES.map((cat) => {
+                  const amount = categoryTotals[cat.name] || 0;
+                  const percentage =
+                    totalSpent > 0 ? (amount / totalSpent) * 100 : 0;
+                  if (amount === 0) return null;
+
+                  return (
+                    <div key={cat.name} className="space-y-2">
+                      <div className="flex justify-between items-end">
+                        <div className="flex items-center gap-2">
+                          <span className="p-2 rounded-lg bg-slate-800 text-sm">
+                            {cat.icon}
+                          </span>
+                          <span className="text-sm font-bold text-slate-200">
+                            {cat.name}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-sm font-bold text-emerald-400">
+                            {amount} ALGO
+                          </span>
+                          <span className="text-[10px] text-slate-500 ml-2">
+                            {percentage.toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${percentage}%` }}
+                          className={`h-full ${cat.color.replace("/20", "")} bg-current`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </motion.div>
           ) : (
             <motion.div
@@ -350,7 +597,19 @@ export default function GroupView() {
                     className="flex justify-between items-center p-5 glass-input rounded-2xl border border-transparent hover:border-emerald-500/20 transition-all"
                   >
                     <div>
-                      <p className="font-bold text-slate-100">{exp.title}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-slate-100">{exp.title}</p>
+                        {exp.category && (
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-bold border border-slate-700">
+                            {exp.category}
+                          </span>
+                        )}
+                        {exp.isRecurring && (
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-bold border border-emerald-500/20 flex items-center gap-1">
+                            <Clock size={10} /> {exp.interval}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-slate-500 font-mono mt-1">
                         BY{" "}
                         {exp.payer === address ? "YOU" : exp.payer.slice(0, 10)}

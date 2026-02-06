@@ -1,193 +1,203 @@
 ﻿"use client";
 
-import React, { useState } from "react";
-import WalletConnect from "@/components/WalletConnect";
-import GroupView from "@/components/GroupView";
-import { useAppContext } from "@/context/AppContext";
-import { Plus, Users, ArrowRight, Wallet } from "lucide-react";
-import { Group } from "@/utils/algorand";
-import { motion, AnimatePresence } from "framer-motion";
-import toast from "react-hot-toast";
+import React from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  ShieldCheck,
+  Zap,
+  Globe,
+  Smartphone,
+  BarChart3,
+  Layers,
+} from "lucide-react";
 
-export default function Home() {
-  const { address, activeGroup, setActiveGroup, groups, setGroups, isLoading } = useAppContext();
-  const [newGroupName, setNewGroupName] = useState("");
-  const [newMember, setNewMember] = useState("");
-  const [tempMembers, setTempMembers] = useState<string[]>([]);
-
-  const handleCreateGroup = () => {
-    if (!newGroupName || tempMembers.length === 0) {
-      toast.error("Group name and at least 1 member required");
-      return;
-    }
-    const newGroup: Group = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: newGroupName,
-      members: [address!, ...tempMembers],
-      expenses: [],
-    };
-    setGroups([...groups, newGroup]);
-    setNewGroupName("");
-    setTempMembers([]);
-    toast.success("Group created successfully");
-  };
-
-  if (activeGroup) return <GroupView />;
+export default function LandingPage() {
+  const features = [
+    {
+      icon: <ShieldCheck className="text-emerald-500" />,
+      title: "Blockchain Security",
+      desc: "Every transaction is secured on the Algorand blockchain with cryptographic certainty.",
+    },
+    {
+      icon: <Zap className="text-emerald-500" />,
+      title: "Instant Settlement",
+      desc: "Atomic transactions ensure all debts are cleared simultaneously or not at all.",
+    },
+    {
+      icon: <BarChart3 className="text-emerald-500" />,
+      title: "Debt Optimization",
+      desc: "Our graph algorithm reduces N-party debts to the absolute minimum number of transfers.",
+    },
+    {
+      icon: <Layers className="text-emerald-500" />,
+      title: "Multi-Asset Support",
+      desc: "Split expenses in ALGO, USDC, or any campus-specific Algorand Standard Asset (ASA).",
+    },
+  ];
 
   return (
-    <main className="min-h-screen p-6 md:p-12 max-w-6xl mx-auto">
-      <motion.header 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="flex justify-between items-center mb-16"
-      >
-        <div>
-          <h1 className="text-4xl font-black text-emerald-500 tracking-tighter italic">SPLIT-IT</h1>
-          <p className="text-slate-400 text-xs font-bold tracking-widest uppercase">Institutional-Grade Expense Ledger</p>
-        </div>
-        <WalletConnect />
-      </motion.header>
-
-      <AnimatePresence mode="wait">
-        {!address ? (
-          <motion.div 
-            key="connect"
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 1.05, opacity: 0 }}
-            className="max-w-md mx-auto mt-20 text-center"
+    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-500/30">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 glass-card rounded-none! border-b border-white/5 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-emerald-500 tracking-tighter italic">
+              SPLIT-IT
+            </h1>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded">
+              v2.0
+            </span>
+          </div>
+          <Link
+            href="/dashboard"
+            className="bg-emerald-600 hover:bg-emerald-500 text-slate-950 px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
           >
-            <div className="glass-card p-12 rounded-[2.5rem] border-emerald-500/20">
-              <div className="w-20 h-20 bg-emerald-500/10 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-emerald-500/20">
-                <Wallet size={40} className="text-emerald-500" />
-              </div>
-              <h2 className="text-3xl font-black mb-4 tracking-tight">Financial Protocol</h2>
-              <p className="text-slate-400 mb-8 leading-relaxed">
-                Connect your Algorand wallet to access the decentralized expense splitting graph. 
-                Manage dorm costs and campus tabs with cryptographic certainty.
-              </p>
-              <div className="p-4 bg-slate-900/50 rounded-2xl text-[10px] text-slate-500 font-mono tracking-tight uppercase">
-                Waiting for wallet handshake...
-              </div>
+            Launch Protocol
+          </Link>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative pt-40 pb-20 px-6 overflow-hidden">
+        {/* Background Gradients */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-250 h-150 bg-emerald-500/10 blur-[120px] -z-10 rounded-full" />
+
+        <div className="max-w-5xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-12px font-black uppercase tracking-[0.4em] text-emerald-500 mb-6">
+              Algorithmically Perfect
+            </h2>
+            <h3 className="text-5xl md:text-7xl font-black mb-8 leading-[1.1] tracking-tight text-white italic">
+              Decentralized Peer <br />
+              <span className="text-emerald-500">Expense Graph</span>
+            </h3>
+            <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
+              The world's first expense splitter built on Algorand. Minimize
+              transfers, verify debts on-chain, and settle instantly with
+              institutional-grade security.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+              <Link
+                href="/dashboard"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-slate-950 px-10 py-5 rounded-2xl font-black text-lg transition-all shadow-2xl shadow-emerald-500/40 flex items-center justify-center gap-3 active:scale-95 group"
+              >
+                Enter Dashboard{" "}
+                <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <a
+                href="#features"
+                className="w-full sm:w-auto glass-card px-10 py-5 rounded-2xl font-black text-lg hover:border-emerald-500/50 transition-all flex items-center justify-center"
+              >
+                Whitepaper logic
+              </a>
             </div>
           </motion.div>
-        ) : (
-          <motion.div 
-            key="dashboard"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="grid grid-cols-1 lg:grid-cols-12 gap-12"
+        </div>
+      </section>
+
+      {/* Stats/Badges */}
+      <section className="py-10 px-6">
+        <div className="max-w-7xl mx-auto flex flex-wrap justify-center gap-8 opacity-40">
+          <div className="flex items-center gap-2 font-black italic tracking-tighter text-2xl">
+            ALGORAND
+          </div>
+          <div className="flex items-center gap-2 font-black italic tracking-tighter text-2xl">
+            PERA WALLET
+          </div>
+          <div className="flex items-center gap-2 font-black italic tracking-tighter text-2xl">
+            DEBT GRAPH v3
+          </div>
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section id="features" className="py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h4 className="text-3xl font-black tracking-tight mb-4 italic">
+              Engineered for Transparency
+            </h4>
+            <p className="text-slate-500 max-w-xl mx-auto font-medium">
+              Built with the campus economy in mind. From dorm utilities to club
+              dinners, Split-It handles the math so you don't have to.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {features.map((f, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="glass-card p-8 rounded-3xl border-emerald-500/5 hover:border-emerald-500/20 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-6 border border-emerald-500/20 group-hover:scale-110 transition-transform">
+                  {f.icon}
+                </div>
+                <h5 className="text-xl font-bold mb-3">{f.title}</h5>
+                <p className="text-slate-500 text-sm leading-relaxed">
+                  {f.desc}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-32 px-6">
+        <div className="max-w-5xl mx-auto glass-card rounded-[4rem] p-12 md:p-24 text-center border-emerald-500/20 relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/20 blur-[100px]" />
+          <h4 className="text-4xl md:text-5xl font-black mb-8 italic">
+            Ready to optimize your <br />{" "}
+            <span className="text-emerald-500">financial graph?</span>
+          </h4>
+          <p className="text-slate-400 max-w-lg mx-auto mb-12 font-medium">
+            Join the decentralized campus economy today. Secure, transparent,
+            and built on the future of finance.
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-flex bg-emerald-600 hover:bg-emerald-500 text-slate-950 px-12 py-5 rounded-2xl font-black text-xl transition-all shadow-xl shadow-emerald-500/30 active:scale-95"
           >
-            <section className="lg:col-span-5 space-y-8">
-              <h2 className="text-2xl font-black flex items-center gap-3 tracking-tight">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center">
-                  <Plus size={20} className="text-slate-950" />
-                </div>
-                Initialize Group
-              </h2>
-              <div className="glass-card rounded-[2rem] p-8 space-y-6">
-                <div>
-                  <label className="text-xs font-bold text-slate-500 mb-2 block uppercase tracking-widest">Protocol Name</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Room 402 Utilities"
-                    className="w-full glass-input rounded-2xl p-4 focus:ring-2 focus:ring-emerald-500 outline-none"
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                  />
-                </div>
-                
-                <div>
-                  <label className="text-xs font-bold text-slate-500 mb-2 block uppercase tracking-widest">Add Nodes (Wallets)</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Algorand Address"
-                      className="flex-1 glass-input rounded-2xl p-4 text-xs font-mono outline-none"
-                      value={newMember}
-                      onChange={(e) => setNewMember(e.target.value)}
-                    />
-                    <button 
-                      onClick={() => {
-                        if (newMember) {
-                          setTempMembers([...tempMembers, newMember]);
-                          setNewMember("");
-                        }
-                      }}
-                      className="bg-slate-800 px-6 rounded-2xl hover:bg-slate-700 transition font-bold"
-                    >
-                      ADD
-                    </button>
-                  </div>
-                </div>
+            Get Started Now
+          </Link>
+        </div>
+      </section>
 
-                <div className="flex flex-wrap gap-2 min-h-[40px]">
-                  {tempMembers.map((m) => (
-                    <motion.span 
-                      key={m}
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="bg-emerald-500/10 text-emerald-500 text-[10px] font-mono p-2 px-3 rounded-xl border border-emerald-500/20"
-                    >
-                      {m.slice(0, 6)}...{m.slice(-4)}
-                    </motion.span>
-                  ))}
-                </div>
-
-                <button 
-                  onClick={handleCreateGroup}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black text-lg transition-all shadow-xl shadow-emerald-900/20 active:scale-95"
-                >
-                  DEPLOY GROUP
-                </button>
-              </div>
-            </section>
-
-            <section className="lg:col-span-7 space-y-8">
-              <h2 className="text-2xl font-black flex items-center gap-3 tracking-tight">
-                <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center">
-                  <Users size={18} className="text-emerald-500" />
-                </div>
-                Active Graphs
-              </h2>
-              <div className="grid gap-4">
-                {groups.length === 0 ? (
-                  <div className="glass-card border-dashed border-slate-800 rounded-[2rem] p-20 text-center text-slate-500 flex flex-col items-center gap-4">
-                    <Users size={40} className="opacity-20" />
-                    <p className="font-medium">No active settlement graphs detected.</p>
-                  </div>
-                ) : (
-                  groups.map((group, idx) => (
-                    <motion.div 
-                      key={group.id}
-                      initial={{ x: 20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ delay: idx * 0.1 }}
-                      onClick={() => setActiveGroup(group)}
-                      className="group glass-card p-8 rounded-[2rem] hover:border-emerald-500/40 transition-all cursor-pointer flex justify-between items-center shadow-lg active:scale-[0.99]"
-                    >
-                      <div>
-                        <h3 className="font-black text-xl group-hover:text-emerald-400 transition-colors">{group.name}</h3>
-                        <div className="flex items-center gap-4 mt-2">
-                           <p className="text-xs text-slate-500 font-bold flex items-center gap-1 uppercase tracking-widest">
-                            <Users size={12} /> {group.members.length} Members
-                          </p>
-                          <p className="text-xs text-emerald-500/60 font-bold flex items-center gap-1 uppercase tracking-widest">
-                            <Plus size={12} /> {group.expenses.length} Records
-                          </p>
-                        </div>
-                      </div>
-                      <div className="w-12 h-12 rounded-2xl bg-slate-800/50 flex items-center justify-center group-hover:bg-emerald-500 transition-all">
-                        <ArrowRight className="text-slate-600 group-hover:text-slate-950 transition-all" />
-                      </div>
-                    </motion.div>
-                  ))
-                )}
-              </div>
-            </section>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </main>
+      {/* Footer */}
+      <footer className="py-12 px-6 border-t border-white/5">
+        <div className="max-w-7xl mx-auto flex flex-col md:row justify-between items-center gap-6">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-black text-emerald-500 tracking-tighter italic">
+              SPLIT-IT
+            </h1>
+          </div>
+          <p className="text-slate-600 text-[10px] font-mono uppercase tracking-widest text-center">
+            © 2026 Split-It Protocol. Secured by Algorand Labs.
+          </p>
+          <div className="flex gap-6 text-slate-500 text-sm font-bold">
+            <a href="#" className="hover:text-emerald-500">
+              Twitter
+            </a>
+            <a href="#" className="hover:text-emerald-500">
+              Whitepaper
+            </a>
+            <a href="#" className="hover:text-emerald-500">
+              GitHub
+            </a>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }

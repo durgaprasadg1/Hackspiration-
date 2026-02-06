@@ -21,6 +21,8 @@ export interface Expense {
   timestamp: number;
   splitType: SplitType;
   splits?: Record<string, number>;
+  isRecurring?: boolean;
+  interval?: "weekly" | "monthly";
 }
 
 export interface Group {
@@ -40,17 +42,17 @@ export const createAtomicSettlement = async (
   const txns = settlements.map((s) => {
     if (!s.assetId || s.assetId === 0) {
       return algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        from: sender,
-        to: s.receiver,
-        amount: algosdk.algosToMicroalgos(s.amount),
+        sender: sender,
+        receiver: s.receiver,
+        amount: BigInt(algosdk.algosToMicroalgos(s.amount)),
         suggestedParams: params,
       });
     } else {
       return algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-        from: sender,
-        to: s.receiver,
-        assetIndex: s.assetId,
-        amount: Math.round(s.amount * Math.pow(10, s.assetDecimals || 6)),
+        sender: sender,
+        receiver: s.receiver,
+        assetIndex: BigInt(s.assetId),
+        amount: BigInt(Math.round(s.amount * Math.pow(10, s.assetDecimals || 6))),
         suggestedParams: params,
       });
     }
