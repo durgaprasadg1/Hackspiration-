@@ -1,21 +1,53 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import WalletConnect from "@/components/WalletConnect";
 import GroupView from "@/components/GroupView";
 import { useAppContext } from "@/context/AppContext";
-import { Plus, Users, ArrowRight, Wallet, ChevronLeft } from "lucide-react";
+import {
+  Plus,
+  Users,
+  ArrowRight,
+  Wallet,
+  ChevronLeft,
+  LogOut,
+} from "lucide-react";
 import { Group } from "@/utils/algorand";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const { address, activeGroup, setActiveGroup, groups, setGroups, isLoading } =
     useAppContext();
   const [newGroupName, setNewGroupName] = useState("");
   const [newMember, setNewMember] = useState("");
   const [tempMembers, setTempMembers] = useState<string[]>([]);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/signin");
+    }
+  }, [status, router]);
+
+  // Show loading while checking auth
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="text-emerald-500 text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render dashboard if not authenticated
+  if (status !== "authenticated") {
+    return null;
+  }
 
   const handleCreateGroup = () => {
     if (!newGroupName || tempMembers.length === 0) {
@@ -55,11 +87,28 @@ export default function Dashboard() {
               SPLIT-IT
             </h1>
             <p className="text-slate-400 text-xs font-bold tracking-widest uppercase">
-              Institutional-Grade Expense Ledger
+              Smart Expense Ledger
             </p>
           </div>
         </div>
-        <WalletConnect />
+        <div className="flex items-center gap-4">
+          <div className="hidden md:block text-right mr-2">
+            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest leading-tight">
+              Identity Verified
+            </p>
+            <p className="text-xs text-slate-400 font-medium">
+              {session?.user?.email}
+            </p>
+          </div>
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="w-10 h-10 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-500/10 transition-all active:scale-95"
+            title="Sign Out"
+          >
+            <LogOut size={18} />
+          </button>
+          <WalletConnect />
+        </div>
       </motion.header>
 
       <AnimatePresence mode="wait">

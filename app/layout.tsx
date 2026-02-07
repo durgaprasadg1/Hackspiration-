@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
 import { Toaster } from "react-hot-toast";
-
+import { SessionProvider } from "next-auth/react";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -21,7 +21,9 @@ export default function RootLayout({
       <body
         className={`${inter.className} bg-slate-950 text-slate-100 min-h-screen`}
       >
-        <AppProvider>{children}</AppProvider>
+        <SessionProvider>
+          <AppProvider>{children}</AppProvider>
+        </SessionProvider>
         <Toaster
           position="bottom-right"
           toastOptions={{

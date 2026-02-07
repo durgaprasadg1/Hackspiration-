@@ -50,12 +50,20 @@ export default function LandingPage() {
               v2.0
             </span>
           </div>
-          <Link
-            href="/dashboard"
-            className="bg-emerald-600 hover:bg-emerald-500 text-slate-950 px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
-          >
-            Launch Protocol
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/auth/signin"
+              className="text-slate-400 hover:text-white font-bold transition-colors"
+            >
+              Login
+            </Link>
+            <Link
+              href="/auth/register"
+              className="bg-emerald-600 hover:bg-emerald-500 text-slate-950 px-6 py-2.5 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+            >
+              Register
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -71,32 +79,31 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
           >
             <h2 className="text-12px font-black uppercase tracking-[0.4em] text-emerald-500 mb-6">
-              Algorithmically Perfect
+              Simple and Secure
             </h2>
             <h3 className="text-5xl md:text-7xl font-black mb-8 leading-[1.1] tracking-tight text-white italic">
-              Decentralized Peer <br />
-              <span className="text-emerald-500">Expense Graph</span>
+              Student Expense <br />
+              <span className="text-emerald-500">Splitter</span>
             </h3>
             <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
-              The world's first expense splitter built on Algorand. Minimize
-              transfers, verify debts on-chain, and settle instantly with
-              institutional-grade security.
+              The easiest way to split bills with friends on Algorand. Secure,
+              fast, and no password needed. Login with just your email.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               <Link
-                href="/dashboard"
+                href="/auth/register"
                 className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-slate-950 px-10 py-5 rounded-2xl font-black text-lg transition-all shadow-2xl shadow-emerald-500/40 flex items-center justify-center gap-3 active:scale-95 group"
               >
-                Enter Dashboard{" "}
+                Get Started{" "}
                 <ArrowRight className="group-hover:translate-x-1 transition-transform" />
               </Link>
-              <a
-                href="#features"
+              <Link
+                href="/auth/signin"
                 className="w-full sm:w-auto glass-card px-10 py-5 rounded-2xl font-black text-lg hover:border-emerald-500/50 transition-all flex items-center justify-center"
               >
-                Whitepaper logic
-              </a>
+                Login
+              </Link>
             </div>
           </motion.div>
         </div>
